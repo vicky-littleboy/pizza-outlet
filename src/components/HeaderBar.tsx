@@ -6,10 +6,19 @@ import { useCart } from "@/components/CartContext";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+type User = {
+  id: string;
+  email?: string;
+  user_metadata?: {
+    full_name?: string;
+    phone?: string;
+  };
+} | null;
+
 export default function HeaderBar() {
   const { serviceType, deliveryArea, openModal } = useOrderContext();
   const { items } = useCart();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
   
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);

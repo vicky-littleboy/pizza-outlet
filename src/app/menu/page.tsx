@@ -2,6 +2,29 @@ import MenuList from "@/components/MenuList";
 import CategoryToggles from "@/components/CategoryToggles";
 import { supabase } from "@/lib/supabaseClient";
 
+type MenuItem = {
+  id: string;
+  name: string;
+  description: string;
+  base_price: number;
+  category_id: string;
+};
+
+type MenuVariant = {
+  id: string;
+  menu_id: string;
+  name: string;
+  price: number;
+};
+
+type MenuItemWithVariants = {
+  id: string;
+  name: string;
+  description: string;
+  base_price: number;
+  variants: { id: string; name: string; price: number }[];
+};
+
 function toString(q: string | string[] | undefined | null): string | null {
   if (!q) return null;
   return Array.isArray(q) ? q[0] : q;
@@ -22,19 +45,19 @@ async function fetchMenu(categoryId: string | null) {
   const { data: items, error } = await query;
   if (error) throw error;
 
-  const ids = (items ?? []).map((i: any) => i.id);
-  let variants: any[] = [];
+  const ids = (items ?? []).map((i: MenuItem) => i.id);
+  let variants: MenuVariant[] = [];
   if (ids.length > 0) {
     const { data: v } = await supabase.from("menu_variants").select("id,menu_id,name,price").in("menu_id", ids);
     variants = v ?? [];
   }
 
-  const merged = (items ?? []).map((it: any) => ({
+  const merged = (items ?? []).map((it: MenuItem): MenuItemWithVariants => ({
     id: it.id,
     name: it.name,
     description: it.description,
     base_price: it.base_price,
-    variants: variants.filter((v: any) => v.menu_id === it.id).map((v: any) => ({ id: v.id, name: v.name, price: Number(v.price) })),
+    variants: variants.filter((v: MenuVariant) => v.menu_id === it.id).map((v: MenuVariant) => ({ id: v.id, name: v.name, price: Number(v.price) })),
   }));
 
   return merged;
@@ -52,7 +75,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Record<
       
       <CategoryToggles categories={categories} selectedId={categoryId} />
       
-      <MenuList items={items as any} />
+      <MenuList items={items} />
     </div>
   );
 } 

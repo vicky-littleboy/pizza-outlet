@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+
+type User = {
+  id: string;
+  email?: string;
+  user_metadata?: {
+    full_name?: string;
+    phone?: string;
+  };
+} | null;
 
 type OrderItem = {
   id: string;
@@ -25,10 +34,28 @@ type Order = {
   items?: OrderItem[];
 };
 
+type MenuData = {
+  name: string;
+};
+
+type VariantData = {
+  name: string;
+};
+
+type OrderItemWithRelations = {
+  id: string;
+  menu_id: string;
+  variant_id: string | null;
+  quantity: number;
+  price: number;
+  menu: MenuData | null;
+  variant: VariantData | null;
+};
+
 export default function OrdersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,8 +117,8 @@ export default function OrdersPage() {
           variant_id: item.variant_id,
           quantity: item.quantity,
           price: item.price,
-          menu_name: (item.menu as any)?.name,
-          variant_name: (item.variant as any)?.name
+          menu_name: (item.menu as unknown as MenuData)?.name,
+          variant_name: (item.variant as unknown as VariantData)?.name
         })) || [];
         setSelectedOrder(orderWithItems);
       }

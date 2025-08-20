@@ -19,7 +19,7 @@ function mapToDisplayCategories(categories: Category[]): Category[] {
   return Object.values(merged);
 }
 
-function categoryImagePath(name: string, fallbackIndex: number): string {
+function categoryImagePath(name: string, _fallbackIndex: number): string {
   const n = name.toLowerCase();
   // Unsplash category-themed images
   const map: Record<string, string> = {

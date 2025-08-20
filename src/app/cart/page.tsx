@@ -7,6 +7,22 @@ import { supabase } from "@/lib/supabaseClient";
 import { useMemo, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+type User = {
+  id: string;
+  email?: string;
+  user_metadata?: {
+    full_name?: string;
+    phone?: string;
+    address?: string;
+  };
+} | null;
+
+type UserMetadata = {
+  full_name?: string;
+  phone?: string;
+  address?: string;
+};
+
 export default function CartPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -14,8 +30,8 @@ export default function CartPage() {
   const { serviceType, deliveryArea, openModal } = useOrderContext();
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
-  const [meta, setMeta] = useState<{ full_name?: string; phone?: string; address?: string }>({});
+  const [user, setUser] = useState<User>(null);
+  const [meta, setMeta] = useState<UserMetadata>({});
   const [editingAddress, setEditingAddress] = useState(false);
   const [addressInput, setAddressInput] = useState("");
 
@@ -25,8 +41,8 @@ export default function CartPage() {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
       if (data.user) {
-        setMeta((data.user.user_metadata as any) ?? {});
-        setAddressInput((data.user.user_metadata as any)?.address ?? "");
+        setMeta((data.user.user_metadata as UserMetadata) ?? {});
+        setAddressInput((data.user.user_metadata as UserMetadata)?.address ?? "");
       }
     });
   }, []);
@@ -209,7 +225,7 @@ export default function CartPage() {
       )}
 
       <div className="rounded-xl border border-gray-200 bg-white">
-        {grouped.map((it, index) => (
+        {grouped.map((it, _index) => (
           <div key={`${it.menuId}-${it.variantId ?? "base"}`} className="flex items-center justify-between p-4 border-b last:border-b-0 relative">
             <div>
               <div className="text-gray-900 font-medium">{it.name}</div>
