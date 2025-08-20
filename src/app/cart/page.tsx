@@ -225,7 +225,7 @@ export default function CartPage() {
       )}
 
       <div className="rounded-xl border border-gray-200 bg-white">
-        {grouped.map((it, _index) => (
+        {grouped.map((it) => (
           <div key={`${it.menuId}-${it.variantId ?? "base"}`} className="flex items-center justify-between p-4 border-b last:border-b-0 relative">
             <div>
               <div className="text-gray-900 font-medium">{it.name}</div>

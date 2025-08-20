@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 
 type CartItem = {
 	menuId: string | number;
@@ -66,14 +66,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 		setItems([]);
 	}
 
-	function getQuantity(menuId: CartItem["menuId"], variantId: string | null) {
+	const getQuantity = useCallback((menuId: CartItem["menuId"], variantId: string | null) => {
 		const found = items.find((p) => p.menuId === menuId && (p.variantId ?? null) === (variantId ?? null));
 		return found?.quantity ?? 0;
-	}
+	}, [items]);
 
-	function increment(item: Omit<CartItem, "quantity">) {
+	const increment = useCallback((item: Omit<CartItem, "quantity">) => {
 		addItem(item, 1);
-	}
+	}, []);
 
 	function decrement(menuId: CartItem["menuId"], variantId: string | null) {
 		setItems((prev) => {

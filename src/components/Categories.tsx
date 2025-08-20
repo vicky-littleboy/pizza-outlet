@@ -19,7 +19,7 @@ function mapToDisplayCategories(categories: Category[]): Category[] {
   return Object.values(merged);
 }
 
-function categoryImagePath(name: string, _fallbackIndex: number): string {
+function categoryImagePath(name: string): string {
   const n = name.toLowerCase();
   // Unsplash category-themed images
   const map: Record<string, string> = {
@@ -66,7 +66,7 @@ export default async function Categories() {
           <Link key={cat.id} href={{ pathname: "/menu", query: { categoryId: cat.id } }} className="flex flex-col items-center text-center gap-2">
             <div className="size-28 sm:size-32 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
               <Image
-                src={cat.image_url || categoryImagePath(cat.name, idx)}
+                src={cat.image_url || categoryImagePath(cat.name)}
                 alt={cat.name}
                 width={150}
                 height={150}

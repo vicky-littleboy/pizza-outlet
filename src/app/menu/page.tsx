@@ -63,8 +63,13 @@ async function fetchMenu(categoryId: string | null) {
   return merged;
 }
 
-export default async function MenuPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-  const categoryId = toString(searchParams["categoryId"]);
+export default async function MenuPage({ 
+  searchParams 
+}: { 
+  searchParams: Promise<Record<string, string | string[] | undefined>> 
+}) {
+  const params = await searchParams;
+  const categoryId = toString(params["categoryId"]);
   const [categories, items] = await Promise.all([fetchCategories(), fetchMenu(categoryId)]);
 
   return (

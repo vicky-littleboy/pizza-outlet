@@ -42,16 +42,6 @@ type VariantData = {
   name: string;
 };
 
-type OrderItemWithRelations = {
-  id: string;
-  menu_id: string;
-  variant_id: string | null;
-  quantity: number;
-  price: number;
-  menu: MenuData | null;
-  variant: VariantData | null;
-};
-
 export default function OrdersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
