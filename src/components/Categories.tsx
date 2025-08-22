@@ -62,7 +62,7 @@ export default async function Categories() {
     <div className="mt-6">
       <h3 className="text-lg font-semibold text-gray-800 mb-3">Categories</h3>
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {display.map((cat, idx) => (
+        {display.map((cat) => (
           <Link key={cat.id} href={{ pathname: "/menu", query: { categoryId: cat.id } }} className="flex flex-col items-center text-center gap-2">
             <div className="size-28 sm:size-32 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
               <Image

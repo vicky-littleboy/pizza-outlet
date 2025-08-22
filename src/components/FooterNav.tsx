@@ -14,7 +14,7 @@ function NavItem({ href, label, icon, showCount = false, isCart = false }: { hre
   if (isCart) {
     return (
       <Link href={href} className="flex items-center justify-center h-full">
-        <div className="bg-red-600 text-white font-bold px-6 py-4 rounded-md flex items-center justify-center h-full min-w-[60px]">
+        <div className="bg-red-600 text-white font-bold px-3 py-2 rounded-md flex items-center justify-center text-sm max-w-[80px] h-10">
           Cart {cartItemCount > 0 && `(${cartItemCount})`}
         </div>
       </Link>

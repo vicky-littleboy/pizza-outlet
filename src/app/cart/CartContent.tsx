@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useCart } from "@/components/CartContext";
 import { useOrderContext } from "@/components/OrderContext";
 import { supabase } from "@/lib/supabaseClient";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type User = {
@@ -24,30 +25,52 @@ type UserMetadata = {
 };
 
 // Smart Recommendations Component
-function SmartRecommendations({ items, menuItems, increment, isDelivery }: { items: any[], menuItems: any[], increment: any, isDelivery: boolean }) {
+function SmartRecommendations({ items, menuItems, increment, isDelivery }: { 
+  items: Array<{ name: string; menuId: string | number; variantId?: string | null }>, 
+  menuItems: Array<{ 
+    id: string; 
+    name: string; 
+    base_price: number; 
+    imageUrl?: string; 
+    categories?: { id: string; name: string } | null; 
+    variants?: Array<{ id: string; name: string; price: number }> 
+  }>, 
+  increment: (item: { menuId: string | number; name: string; unitPrice: number; variantId: string | null; variantLabel: string }) => void, 
+  isDelivery: boolean 
+}) {
   // Get cart item names for exclusion
   const cartItemNames = items.map(item => item.name.toLowerCase());
   
   // Helper function to check if item is in cart
-  const isItemInCart = (itemName: string) => {
+  const isItemInCart = useCallback((itemName: string) => {
     return cartItemNames.some(cartName => 
       cartName.includes(itemName.toLowerCase()) || 
       itemName.toLowerCase().includes(cartName)
     );
-  };
+  }, [cartItemNames]);
 
   // Helper function to get best items with variants (prioritize by price or popularity)
-  const getBestItems = (items: any[], count: number) => {
+  const getBestItems = useCallback((items: Array<{ 
+    id: string; 
+    name: string; 
+    base_price: number; 
+    imageUrl?: string; 
+    categories?: { id: string; name: string } | null; 
+    variants?: Array<{ id: string; name: string; price: number }> 
+  }>, count: number) => {
     const availableItems = items.filter(item => !isItemInCart(item.name));
     if (availableItems.length <= count) return availableItems;
     
     // Sort by base price (lower price first) and take top items
     const sorted = availableItems.sort((a, b) => a.base_price - b.base_price);
     return sorted.slice(0, count);
-  };
+  }, [isItemInCart]);
 
   // Helper function to get the best variant for display
-  const getBestVariant = (item: any) => {
+  const getBestVariant = (item: { 
+    base_price: number; 
+    variants?: Array<{ id: string; name: string; price: number }> 
+  }) => {
     if (!item.variants || item.variants.length === 0) {
       // No variants, use base price
       return {
@@ -151,7 +174,7 @@ function SmartRecommendations({ items, menuItems, increment, isDelivery }: { ite
       drinkItems: getBestItems(drinkItems, 2),
       dessertItems: getBestItems(dessertItems, 2)
     };
-  }, [menuItems, items]);
+  }, [menuItems, getBestItems]);
 
   console.log('SmartRecommendations - items:', items.length, 'menuItems:', menuItems.length);
   console.log('Cart items:', items.map(item => item.name));
@@ -213,22 +236,35 @@ function SmartRecommendations({ items, menuItems, increment, isDelivery }: { ite
        <div className="text-sm text-orange-700 mb-2">
          {message}
        </div>
-       {recommendations.length > 0 ? (
-         <div className="grid grid-cols-2 sm:flex sm:gap-2 sm:overflow-x-auto sm:pb-2 gap-2 w-full">
-           {recommendations.map((item: any) => {
+               {recommendations.length > 0 ? (
+          <div className="grid grid-cols-2 sm:flex sm:gap-2 sm:overflow-x-auto sm:pb-2 gap-2 w-full">
+            {recommendations.map((item: { 
+              id: string; 
+              name: string; 
+              base_price: number; 
+              imageUrl?: string; 
+              categories?: { id: string; name: string } | null; 
+              variants?: Array<{ id: string; name: string; price: number }> 
+            }) => {
              const bestVariant = getBestVariant(item);
              return (
                <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-3 sm:flex-shrink-0 sm:w-36 min-w-0 shadow-sm hover:shadow-md transition-shadow">
-                 {/* Image */}
-                 <div className="w-full h-20 mb-2 rounded-md overflow-hidden bg-gray-100">
-                   {item.imageUrl ? (
-                     <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                   ) : (
-                     <div className="w-full h-full bg-gray-200 flex items-center justify-center text-lg">
-                       {item.categories?.name?.toLowerCase().includes('drinks') ? '🥤' : '🍕'}
-                     </div>
-                   )}
-                 </div>
+                                   {/* Image */}
+                  <div className="w-full h-20 mb-2 rounded-md overflow-hidden bg-gray-100">
+                    {item.imageUrl ? (
+                      <Image 
+                        src={item.imageUrl} 
+                        alt={item.name} 
+                        width={80}
+                        height={80}
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gray-200 flex items-center justify-center text-lg">
+                        {item.categories?.name?.toLowerCase().includes('drinks') ? '🥤' : '🍕'}
+                      </div>
+                    )}
+                  </div>
                  
                  {/* Item Name */}
                  <div className="text-sm font-medium text-gray-900 mb-1 line-clamp-2 leading-tight">
@@ -276,7 +312,16 @@ export default function CartContent() {
   const [meta, setMeta] = useState<UserMetadata>({});
   const [editingAddress, setEditingAddress] = useState(false);
   const [addressInput, setAddressInput] = useState("");
-  const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [menuItems, setMenuItems] = useState<Array<{ 
+    id: string; 
+    name: string; 
+    base_price: number; 
+    imageUrl?: string; 
+    category_id: string; 
+    is_available: boolean; 
+    categories?: { id: string; name: string } | null; 
+    variants?: Array<{ id: string; name: string; price: number }> 
+  }>>([]);
 
   const isDelivery = serviceType === "delivery";
   const isMadhuban = deliveryArea === "Madhuban";
@@ -338,6 +383,7 @@ export default function CartContent() {
           // Merge menu items with their variants
           const menuItemsWithVariants = menuData.map(item => ({
             ...item,
+            categories: item.categories?.[0] || null,
             variants: variantData?.filter(v => v.menu_id === item.id) || []
           }));
 
@@ -440,35 +486,7 @@ export default function CartContent() {
 
   const grouped = useMemo(() => items, [items]);
   
-  // Helper functions for recommendations
-  const hasDrinksInCart = useMemo(() => {
-    return items.some(item => 
-      item.name.toLowerCase().includes('drink') || 
-      item.name.toLowerCase().includes('cola') || 
-      item.name.toLowerCase().includes('juice') || 
-      item.name.toLowerCase().includes('water') ||
-      item.name.toLowerCase().includes('soda') ||
-      item.name.toLowerCase().includes('beverage')
-    );
-  }, [items]);
 
-  const hasPizzaInCart = useMemo(() => {
-    return items.some(item => 
-      item.name.toLowerCase().includes('pizza') || 
-      item.name.toLowerCase().includes('margherita') || 
-      item.name.toLowerCase().includes('pepperoni')
-    );
-  }, [items]);
-
-  const hasSidesInCart = useMemo(() => {
-    return items.some(item => 
-      item.name.toLowerCase().includes('fries') || 
-      item.name.toLowerCase().includes('nuggets') || 
-      item.name.toLowerCase().includes('wings') ||
-      item.name.toLowerCase().includes('garlic bread') ||
-      item.name.toLowerCase().includes('dip')
-    );
-  }, [items]);
 
   if (items.length === 0) {
     return (
