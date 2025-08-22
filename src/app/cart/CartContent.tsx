@@ -148,25 +148,48 @@ function SmartRecommendations({ items, menuItems, increment, isDelivery }: {
 
   // Dynamic filtering with exclusion and variety
   const filteredItems = useMemo(() => {
-    const pizzaItems = menuItems.filter(item => 
-      item.categories?.name?.toLowerCase().includes('pizza')
-    );
+    const pizzaItems = menuItems.filter(item => {
+      const categoryName = item.categories?.name?.toLowerCase() || '';
+      return categoryName.includes('pizza') || 
+             categoryName.includes('margherita') || 
+             categoryName.includes('pepperoni');
+    });
 
-    const sidesItems = menuItems.filter(item => 
-      item.categories?.name?.toLowerCase().includes('sides') ||
-      item.categories?.name?.toLowerCase().includes('fries') ||
-      item.categories?.name?.toLowerCase().includes('nuggets')
-    );
+    const sidesItems = menuItems.filter(item => {
+      const categoryName = item.categories?.name?.toLowerCase() || '';
+      return categoryName.includes('sides') ||
+             categoryName.includes('roll') ||
+             categoryName.includes('fries') ||
+             categoryName.includes('nuggets') ||
+             categoryName.includes('burger') ||
+             categoryName.includes('sandwich') ||
+             categoryName.includes('pasta') ||
+             categoryName.includes('noodles') ||
+             categoryName.includes('chowmein');
+    });
 
-    const drinkItems = menuItems.filter(item => 
-      item.categories?.name?.toLowerCase().includes('drinks') ||
-      item.categories?.name?.toLowerCase().includes('beverage')
-    );
+    const drinkItems = menuItems.filter(item => {
+      const categoryName = item.categories?.name?.toLowerCase() || '';
+      return categoryName.includes('drink') ||
+             categoryName.includes('beverage') ||
+             categoryName.includes('cola') ||
+             categoryName.includes('juice') ||
+             categoryName.includes('water') ||
+             categoryName.includes('soda') ||
+             categoryName.includes('tea') ||
+             categoryName.includes('coffee') ||
+             categoryName.includes('shake') ||
+             categoryName.includes('smoothie');
+    });
 
-    const dessertItems = menuItems.filter(item => 
-      item.categories?.name?.toLowerCase().includes('dessert') ||
-      item.categories?.name?.toLowerCase().includes('sweet')
-    );
+    const dessertItems = menuItems.filter(item => {
+      const categoryName = item.categories?.name?.toLowerCase() || '';
+      return categoryName.includes('dessert') ||
+             categoryName.includes('sweet') ||
+             categoryName.includes('ice cream') ||
+             categoryName.includes('cake') ||
+             categoryName.includes('pastry');
+    });
 
     return {
       pizzaItems: getBestItems(pizzaItems, 2),
@@ -218,12 +241,16 @@ function SmartRecommendations({ items, menuItems, increment, isDelivery }: {
       message += "🍟 Perfect pairing! Add some crispy sides! ";
     }
 
-    // If no specific recommendations, suggest pizza
-    if (recommendations.length === 0 && filteredItems.pizzaItems.length > 0) {
-      recommendations.push(...filteredItems.pizzaItems.slice(0, 2));
-      message = isDelivery 
-        ? "🍕 Complete your meal! Add more items to reach the minimum order."
-        : "🍕 Complete your meal! Add more delicious items!";
+    // If no specific recommendations, suggest any available items
+    if (recommendations.length === 0) {
+      // Get all available items that are not in cart
+      const allAvailableItems = menuItems.filter(item => !isItemInCart(item.name));
+      if (allAvailableItems.length > 0) {
+        recommendations.push(...allAvailableItems.slice(0, 2));
+        message = isDelivery 
+          ? "🍕 Complete your meal! Add more items to reach the minimum order."
+          : "🍕 Complete your meal! Add more delicious items!";
+      }
     }
 
     return { recommendations: recommendations.slice(0, 4), message: message.trim() };
@@ -295,6 +322,9 @@ function SmartRecommendations({ items, menuItems, increment, isDelivery }: {
       ) : (
         <div className="text-sm text-gray-600">
           No recommendations available at the moment.
+          <div className="text-xs text-gray-500 mt-1">
+            Debug: {menuItems.length} menu items loaded, {items.length} items in cart
+          </div>
         </div>
       )}
     </div>
@@ -364,6 +394,7 @@ export default function CartContent() {
         
         if (menuError) {
           console.error('Error fetching menu items:', menuError);
+          console.error('Supabase connection issue - check environment variables');
           return;
         }
 
@@ -388,6 +419,7 @@ export default function CartContent() {
           }));
 
           console.log('Fetched menu items with variants:', menuItemsWithVariants.length);
+          console.log('Available categories:', [...new Set(menuItemsWithVariants.map(item => item.categories?.name))]);
           setMenuItems(menuItemsWithVariants);
         }
       } catch (err) {
