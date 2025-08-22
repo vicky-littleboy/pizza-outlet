@@ -23,6 +23,248 @@ type UserMetadata = {
   address?: string;
 };
 
+// Smart Recommendations Component
+function SmartRecommendations({ items, menuItems, increment, isDelivery }: { items: any[], menuItems: any[], increment: any, isDelivery: boolean }) {
+  // Get cart item names for exclusion
+  const cartItemNames = items.map(item => item.name.toLowerCase());
+  
+  // Helper function to check if item is in cart
+  const isItemInCart = (itemName: string) => {
+    return cartItemNames.some(cartName => 
+      cartName.includes(itemName.toLowerCase()) || 
+      itemName.toLowerCase().includes(cartName)
+    );
+  };
+
+  // Helper function to get best items with variants (prioritize by price or popularity)
+  const getBestItems = (items: any[], count: number) => {
+    const availableItems = items.filter(item => !isItemInCart(item.name));
+    if (availableItems.length <= count) return availableItems;
+    
+    // Sort by base price (lower price first) and take top items
+    const sorted = availableItems.sort((a, b) => a.base_price - b.base_price);
+    return sorted.slice(0, count);
+  };
+
+  // Helper function to get the best variant for display
+  const getBestVariant = (item: any) => {
+    if (!item.variants || item.variants.length === 0) {
+      // No variants, use base price
+      return {
+        name: "Regular",
+        price: item.base_price,
+        id: null
+      };
+    }
+    
+    // Get the most popular variant (usually the middle-priced one)
+    const sortedVariants = [...item.variants].sort((a, b) => a.price - b.price);
+    
+    // For items with variants, prefer the middle-priced option
+    // This is usually the most popular choice (e.g., Medium for pizzas)
+    const middleIndex = Math.floor(sortedVariants.length / 2);
+    const bestVariant = sortedVariants[middleIndex];
+    
+    return {
+      name: bestVariant.name,
+      price: bestVariant.price,
+      id: bestVariant.id
+    };
+  };
+
+  // Real-time cart analysis using useMemo
+  const cartAnalysis = useMemo(() => {
+    const hasDrinksInCart = items.some(item => {
+      const name = item.name.toLowerCase();
+      return name.includes('drink') || 
+             name.includes('cola') || 
+             name.includes('juice') || 
+             name.includes('water') ||
+             name.includes('soda') ||
+             name.includes('beverage') ||
+             name.includes('pepsi') ||
+             name.includes('coke') ||
+             name.includes('sprite') ||
+             name.includes('fanta') ||
+             name.includes('milk') ||
+             name.includes('tea') ||
+             name.includes('coffee') ||
+             name.includes('shake') ||
+             name.includes('smoothie') ||
+             name.includes('lemonade') ||
+             name.includes('mint') ||
+             name.includes('lime');
+    });
+
+    const hasPizzaInCart = items.some(item => {
+      const name = item.name.toLowerCase();
+      return name.includes('pizza') || 
+             name.includes('margherita') || 
+             name.includes('pepperoni') ||
+             name.includes('cheese') ||
+             name.includes('veg') ||
+             name.includes('non-veg');
+    });
+
+    const hasSidesInCart = items.some(item => {
+      const name = item.name.toLowerCase();
+      return name.includes('fries') || 
+             name.includes('nuggets') || 
+             name.includes('wings') ||
+             name.includes('garlic bread') ||
+             name.includes('dip') ||
+             name.includes('burger') ||
+             name.includes('sandwich') ||
+             name.includes('wrap') ||
+             name.includes('pasta') ||
+             name.includes('noodles');
+    });
+
+    return { hasDrinksInCart, hasPizzaInCart, hasSidesInCart };
+  }, [items]);
+
+  // Dynamic filtering with exclusion and variety
+  const filteredItems = useMemo(() => {
+    const pizzaItems = menuItems.filter(item => 
+      item.categories?.name?.toLowerCase().includes('pizza')
+    );
+
+    const sidesItems = menuItems.filter(item => 
+      item.categories?.name?.toLowerCase().includes('sides') ||
+      item.categories?.name?.toLowerCase().includes('fries') ||
+      item.categories?.name?.toLowerCase().includes('nuggets')
+    );
+
+    const drinkItems = menuItems.filter(item => 
+      item.categories?.name?.toLowerCase().includes('drinks') ||
+      item.categories?.name?.toLowerCase().includes('beverage')
+    );
+
+    const dessertItems = menuItems.filter(item => 
+      item.categories?.name?.toLowerCase().includes('dessert') ||
+      item.categories?.name?.toLowerCase().includes('sweet')
+    );
+
+    return {
+      pizzaItems: getBestItems(pizzaItems, 2),
+      sidesItems: getBestItems(sidesItems, 2),
+      drinkItems: getBestItems(drinkItems, 2),
+      dessertItems: getBestItems(dessertItems, 2)
+    };
+  }, [menuItems, items]);
+
+  console.log('SmartRecommendations - items:', items.length, 'menuItems:', menuItems.length);
+  console.log('Cart items:', items.map(item => item.name));
+  console.log('Cart analysis:', cartAnalysis);
+  console.log('Filtered items counts:', {
+    pizza: filteredItems.pizzaItems.length,
+    sides: filteredItems.sidesItems.length,
+    drinks: filteredItems.drinkItems.length,
+    dessert: filteredItems.dessertItems.length
+  });
+
+  // Show loading state if menu items are not loaded yet
+  if (menuItems.length === 0) {
+    return (
+      <div className="text-sm text-gray-600">
+        Loading recommendations...
+      </div>
+    );
+  }
+
+    // Smart recommendation logic with unified display
+  const getRecommendations = () => {
+    const recommendations = [];
+    let message = "";
+
+    // Always recommend beverages if not in cart
+    if (!cartAnalysis.hasDrinksInCart && filteredItems.drinkItems.length > 0) {
+      recommendations.push(...filteredItems.drinkItems.slice(0, 2));
+      message += "🥤 Thirsty? Add a refreshing drink! ";
+    }
+
+    // Recommend pizza if not in cart
+    if (!cartAnalysis.hasPizzaInCart && filteredItems.pizzaItems.length > 0) {
+      recommendations.push(...filteredItems.pizzaItems.slice(0, 2));
+      message += "🍕 Hungry? Add a delicious pizza! ";
+    }
+
+    // Recommend sides if pizza is in cart but no sides
+    if (cartAnalysis.hasPizzaInCart && !cartAnalysis.hasSidesInCart && filteredItems.sidesItems.length > 0) {
+      recommendations.push(...filteredItems.sidesItems.slice(0, 2));
+      message += "🍟 Perfect pairing! Add some crispy sides! ";
+    }
+
+    // If no specific recommendations, suggest pizza
+    if (recommendations.length === 0 && filteredItems.pizzaItems.length > 0) {
+      recommendations.push(...filteredItems.pizzaItems.slice(0, 2));
+      message = isDelivery 
+        ? "🍕 Complete your meal! Add more items to reach the minimum order."
+        : "🍕 Complete your meal! Add more delicious items!";
+    }
+
+    return { recommendations: recommendations.slice(0, 4), message: message.trim() };
+  };
+
+  const { recommendations, message } = getRecommendations();
+
+     return (
+     <div className="space-y-3">
+       <div className="text-sm text-orange-700 mb-2">
+         {message}
+       </div>
+       {recommendations.length > 0 ? (
+         <div className="grid grid-cols-2 sm:flex sm:gap-2 sm:overflow-x-auto sm:pb-2 gap-2 w-full">
+           {recommendations.map((item: any) => {
+             const bestVariant = getBestVariant(item);
+             return (
+               <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-3 sm:flex-shrink-0 sm:w-36 min-w-0 shadow-sm hover:shadow-md transition-shadow">
+                 {/* Image */}
+                 <div className="w-full h-20 mb-2 rounded-md overflow-hidden bg-gray-100">
+                   {item.imageUrl ? (
+                     <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                   ) : (
+                     <div className="w-full h-full bg-gray-200 flex items-center justify-center text-lg">
+                       {item.categories?.name?.toLowerCase().includes('drinks') ? '🥤' : '🍕'}
+                     </div>
+                   )}
+                 </div>
+                 
+                 {/* Item Name */}
+                 <div className="text-sm font-medium text-gray-900 mb-1 line-clamp-2 leading-tight">
+                   {item.name}
+                 </div>
+                 
+                 {/* Variant */}
+                 <div className="text-xs text-gray-500 mb-2">
+                   {bestVariant.name}
+                 </div>
+                 
+                 {/* Price and Add Button */}
+                 <div className="flex items-center justify-between">
+                   <div className="text-sm font-semibold text-gray-900">
+                     ₹{Math.round(bestVariant.price)}
+                   </div>
+                   <button 
+                     onClick={() => increment({ menuId: item.id, name: item.name, unitPrice: bestVariant.price, variantId: bestVariant.id, variantLabel: bestVariant.name })}
+                     className="bg-orange-600 text-white text-xs px-3 py-1.5 rounded-md hover:bg-orange-700 font-medium"
+                   >
+                     Add
+                   </button>
+                 </div>
+               </div>
+             );
+           })}
+         </div>
+      ) : (
+        <div className="text-sm text-gray-600">
+          No recommendations available at the moment.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CartContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -34,8 +276,17 @@ export default function CartContent() {
   const [meta, setMeta] = useState<UserMetadata>({});
   const [editingAddress, setEditingAddress] = useState(false);
   const [addressInput, setAddressInput] = useState("");
+  const [menuItems, setMenuItems] = useState<any[]>([]);
 
   const isDelivery = serviceType === "delivery";
+  const isMadhuban = deliveryArea === "Madhuban";
+  const deliveryCharge = isDelivery && !isMadhuban ? 30 : 0;
+  const subtotal = total;
+  const finalTotal = subtotal + deliveryCharge;
+  const minimumOrderAmount = 200;
+  const isOrderTypeSelected = Boolean(serviceType);
+  const isAboveMinimum = subtotal >= minimumOrderAmount; // Use subtotal (item total) instead of finalTotal
+  const isMinimumRequired = isDelivery && !isAboveMinimum; // Only apply minimum order for delivery
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -45,6 +296,60 @@ export default function CartContent() {
         setAddressInput((data.user.user_metadata as UserMetadata)?.address ?? "");
       }
     });
+  }, []);
+
+    // Fetch menu items for recommendations
+  useEffect(() => {
+    async function fetchMenuItems() {
+      try {
+        // Fetch menu items
+        const { data: menuData, error: menuError } = await supabase
+          .from('menu')
+          .select(`
+            id,
+            name,
+            base_price,
+            imageUrl,
+            category_id,
+            is_available,
+            categories(id, name)
+          `)
+          .eq('is_available', true)
+          .order('name');
+        
+        if (menuError) {
+          console.error('Error fetching menu items:', menuError);
+          return;
+        }
+
+        if (menuData) {
+          // Fetch variants for all menu items
+          const menuIds = menuData.map(item => item.id);
+          const { data: variantData, error: variantError } = await supabase
+            .from('menu_variants')
+            .select('id, menu_id, name, price')
+            .in('menu_id', menuIds)
+            .order('price');
+
+          if (variantError) {
+            console.error('Error fetching variants:', variantError);
+          }
+
+          // Merge menu items with their variants
+          const menuItemsWithVariants = menuData.map(item => ({
+            ...item,
+            variants: variantData?.filter(v => v.menu_id === item.id) || []
+          }));
+
+          console.log('Fetched menu items with variants:', menuItemsWithVariants.length);
+          setMenuItems(menuItemsWithVariants);
+        }
+      } catch (err) {
+        console.error('Error in fetchMenuItems:', err);
+      }
+    }
+    
+    fetchMenuItems();
   }, []);
 
   async function saveAddress() {
@@ -70,6 +375,14 @@ export default function CartContent() {
     setPlacing(true);
     setMessage(null);
     try {
+      if (!isOrderTypeSelected) {
+        throw new Error("Please select an order type before proceeding.");
+      }
+
+             if (isMinimumRequired) {
+         throw new Error(`Minimum order amount is ₹${minimumOrderAmount} for delivery. Please add more items to proceed.`);
+       }
+
       if (isDelivery && !meta.address) {
         throw new Error("Please add a delivery address before proceeding.");
       }
@@ -77,17 +390,19 @@ export default function CartContent() {
       console.log("Creating order for user:", user.id);
       console.log("User metadata:", meta);
       console.log("Cart items:", items);
-      const { data: order, error: orderErr } = await supabase
-        .from("orders")
-        .insert({
-          user_id: user.id,
-          status: "pending",
-          customer_name: meta.full_name ?? "Guest",
-          customer_phone: meta.phone ?? null,
-          customer_address: meta.address ?? null,
-        })
-        .select("id")
-        .single();
+             const { data: order, error: orderErr } = await supabase
+         .from("orders")
+         .insert({
+           user_id: user.id,
+           status: "pending",
+           customer_name: meta.full_name ?? "Guest",
+           customer_phone: meta.phone ?? null,
+           customer_address: isDelivery ? (meta.address ?? null) : null,
+           type: serviceType,
+           delivery_charge: deliveryCharge,
+         })
+         .select("id")
+         .single();
       
       if (orderErr) {
         console.error("Order creation error:", orderErr);
@@ -124,6 +439,36 @@ export default function CartContent() {
   }
 
   const grouped = useMemo(() => items, [items]);
+  
+  // Helper functions for recommendations
+  const hasDrinksInCart = useMemo(() => {
+    return items.some(item => 
+      item.name.toLowerCase().includes('drink') || 
+      item.name.toLowerCase().includes('cola') || 
+      item.name.toLowerCase().includes('juice') || 
+      item.name.toLowerCase().includes('water') ||
+      item.name.toLowerCase().includes('soda') ||
+      item.name.toLowerCase().includes('beverage')
+    );
+  }, [items]);
+
+  const hasPizzaInCart = useMemo(() => {
+    return items.some(item => 
+      item.name.toLowerCase().includes('pizza') || 
+      item.name.toLowerCase().includes('margherita') || 
+      item.name.toLowerCase().includes('pepperoni')
+    );
+  }, [items]);
+
+  const hasSidesInCart = useMemo(() => {
+    return items.some(item => 
+      item.name.toLowerCase().includes('fries') || 
+      item.name.toLowerCase().includes('nuggets') || 
+      item.name.toLowerCase().includes('wings') ||
+      item.name.toLowerCase().includes('garlic bread') ||
+      item.name.toLowerCase().includes('dip')
+    );
+  }, [items]);
 
   if (items.length === 0) {
     return (
@@ -149,19 +494,21 @@ export default function CartContent() {
         </Link>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center justify-between">
-        <div className="text-gray-900">
-          <div className="font-medium">Order type</div>
-          <div className="text-sm text-gray-700">
-            {serviceType ? (
-              serviceType === "delivery" ? `Delivery • ${deliveryArea ?? "Area"}` : serviceType === "pickup" ? "Pick-up" : "Dine-in"
-            ) : (
-              "Not selected"
-            )}
-          </div>
-        </div>
-        <button onClick={openModal} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm">Change</button>
-      </div>
+             <div className={`rounded-xl border p-4 flex items-center justify-between ${!isOrderTypeSelected ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'}`}>
+         <div className="text-gray-900">
+           <div className="font-medium">Order type</div>
+           <div className="text-sm text-gray-700">
+             {serviceType ? (
+               serviceType === "delivery" ? `Delivery • ${deliveryArea ?? "Area"}` : serviceType === "pickup" ? "Pick-up" : "Dine-in"
+             ) : (
+               <span className="text-red-600">Please select order type</span>
+             )}
+           </div>
+         </div>
+         <button onClick={openModal} className={`rounded-lg px-3 py-1.5 text-sm ${!isOrderTypeSelected ? 'bg-red-600 text-white hover:bg-red-700' : 'border border-gray-300'}`}>
+           {!isOrderTypeSelected ? 'Select' : 'Change'}
+         </button>
+       </div>
 
       {isDelivery && (
         <div className="rounded-xl border border-yellow-300 bg-yellow-50 p-4">
@@ -193,40 +540,94 @@ export default function CartContent() {
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-200 bg-white">
-        {grouped.map((it) => (
-          <div key={`${it.menuId}-${it.variantId ?? "base"}`} className="flex items-center justify-between p-4 border-b last:border-b-0 relative">
-            <div>
-              <div className="text-gray-900 font-medium">{it.name}</div>
-              <div className="text-sm text-gray-600">{it.variantLabel ?? "Base"}</div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="inline-flex items-center rounded-full border border-gray-300 overflow-hidden">
-                <button onClick={() => decrement(it.menuId, it.variantId)} className="px-3 py-1 text-lg text-red-700 hover:bg-red-50">-</button>
-                <span className="px-3 py-1 text-sm font-medium text-gray-900">{it.quantity}</span>
-                <button onClick={() => increment({ menuId: it.menuId, name: it.name, unitPrice: it.unitPrice, variantId: it.variantId, variantLabel: it.variantLabel })} className="px-3 py-1 text-lg text-red-700 hover:bg-red-50">+</button>
+             <div className="rounded-xl border border-gray-200 bg-white">
+         {grouped.map((it) => (
+           <div key={`${it.menuId}-${it.variantId ?? "base"}`} className="flex items-center justify-between p-4 border-b last:border-b-0 relative">
+             <div>
+               <div className="text-gray-900 font-medium">{it.name}</div>
+               <div className="text-sm text-gray-600">{it.variantLabel ?? "Base"}</div>
+             </div>
+             <div className="flex items-center gap-3">
+               <div className="inline-flex items-center rounded-full border border-gray-300 overflow-hidden">
+                 <button onClick={() => decrement(it.menuId, it.variantId)} className="px-3 py-1 text-lg text-red-700 hover:bg-red-50">-</button>
+                 <span className="px-3 py-1 text-sm font-medium text-gray-900">{it.quantity}</span>
+                 <button onClick={() => increment({ menuId: it.menuId, name: it.name, unitPrice: it.unitPrice, variantId: it.variantId, variantLabel: it.variantLabel })} className="px-3 py-1 text-lg text-red-700 hover:bg-red-50">+</button>
+               </div>
+               <div className="w-16 text-right font-medium text-gray-900">₹{Math.round(it.unitPrice * it.quantity)}</div>
+             </div>
+           </div>
+         ))}
+       </div>
+
+                                                               {/* Smart Recommendations - Always show */}
+          <div className="rounded-xl border border-green-300 bg-green-50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="text-green-600 text-lg">💡</div>
+              <div className="flex-1">
+                                 <SmartRecommendations items={items} menuItems={menuItems} increment={increment} isDelivery={isDelivery} />
               </div>
-              <div className="w-16 text-right font-medium text-gray-900">₹{(it.unitPrice * it.quantity).toFixed(2)}</div>
             </div>
           </div>
-        ))}
-      </div>
+
+         {/* Minimum Order Warning - Only for delivery */}
+         {isMinimumRequired && (
+           <div className="rounded-xl border border-orange-300 bg-orange-50 p-4">
+             <div className="flex items-start gap-3">
+               <div className="text-orange-600 text-lg">⚠️</div>
+               <div className="flex-1">
+                 <div className="font-medium text-orange-800 mb-1">Minimum Order Required for Delivery</div>
+                 <div className="text-sm text-orange-700 mb-3">
+                   You need to add items worth ₹{minimumOrderAmount - subtotal} more to reach the minimum order amount of ₹{minimumOrderAmount}.
+                 </div>
+               </div>
+             </div>
+           </div>
+         )}
 
       {message && <div className="rounded-lg p-3 bg-yellow-100 text-gray-900 border border-yellow-300">{message}</div>}
 
-      <div className="flex items-center justify-between">
-        <div className="text-gray-900 font-semibold">Total: ₹{total.toFixed(2)}</div>
-        {user ? (
-          <button disabled={placing} onClick={placeOrder} className="rounded-lg bg-red-600 text-white px-4 py-2 disabled:opacity-60">
-            {placing ? "Placing order…" : "Place order"}
-          </button>
-        ) : (
-          <div className="text-center">
-            <div className="text-sm text-gray-600 mb-2">Sign in to place your order</div>
-            <Link href="/auth" className="rounded-lg bg-red-600 text-white px-4 py-2">Sign in</Link>
-          </div>
-        )}
-      </div>
+             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+         <div className="flex items-center justify-between text-sm">
+           <span className="text-gray-600">Subtotal:</span>
+           <span className="font-medium">₹{Math.round(subtotal)}</span>
+         </div>
+         
+         {deliveryCharge > 0 && (
+           <div className="flex items-center justify-between text-sm">
+             <span className="text-gray-600">Delivery Charge:</span>
+             <span className="font-medium text-blue-600">₹{deliveryCharge}</span>
+           </div>
+         )}
+         
+         <div className="border-t border-gray-200 pt-3">
+           <div className="flex items-center justify-between">
+             <span className="text-gray-900 font-semibold">Total:</span>
+             <span className="text-gray-900 font-semibold">₹{Math.round(finalTotal)}</span>
+           </div>
+         </div>
+       </div>
+
+                                 <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              {!isOrderTypeSelected && "Select order type to continue"}
+              {isOrderTypeSelected && isMinimumRequired && `Add ₹${minimumOrderAmount - subtotal} more for delivery minimum`}
+              {isOrderTypeSelected && !isMinimumRequired && "Ready to place order"}
+            </div>
+          {user ? (
+            <button 
+              disabled={placing || !isOrderTypeSelected || isMinimumRequired} 
+              onClick={placeOrder} 
+              className="rounded-lg bg-red-600 text-white px-4 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {placing ? "Placing order…" : "Place order"}
+            </button>
+         ) : (
+           <div className="text-center">
+             <div className="text-sm text-gray-600 mb-2">Sign in to place your order</div>
+             <Link href="/auth" className="rounded-lg bg-red-600 text-white px-4 py-2">Sign in</Link>
+           </div>
+         )}
+       </div>
     </div>
   );
 } 

@@ -31,6 +31,8 @@ type Order = {
   customer_name: string;
   customer_phone: string | null;
   customer_address: string | null;
+  type: string;
+  delivery_charge: number | null;
   items?: OrderItem[];
 };
 
@@ -69,7 +71,7 @@ export default function OrdersContent() {
       setRefreshing(true);
       const { data, error } = await supabase
         .from("orders")
-        .select("id,status,created_at,customer_name,customer_phone,customer_address")
+        .select("id,status,created_at,customer_name,customer_phone,customer_address,type,delivery_charge")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -156,6 +158,24 @@ export default function OrdersContent() {
     }
   }
 
+  function getOrderTypeText(type: string): string {
+    switch (type) {
+      case "delivery": return "Delivery";
+      case "pickup": return "Pickup";
+      case "dinein": return "Dine-in";
+      default: return type;
+    }
+  }
+
+  function getOrderTypeColor(type: string): string {
+    switch (type) {
+      case "delivery": return "bg-blue-100 text-blue-800";
+      case "pickup": return "bg-green-100 text-green-800";
+      case "dinein": return "bg-purple-100 text-purple-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  }
+
   function calculateTotal(items: OrderItem[]): number {
     return items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   }
@@ -201,19 +221,30 @@ export default function OrdersContent() {
           <Link href="/menu" className="rounded-lg bg-red-600 text-white px-4 py-2">Browse menu</Link>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {orders.map((order) => (
-            <div key={order.id} className="rounded-xl border border-gray-200 bg-white p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-500">Order #{String(order.id).slice(0, 8)}</div>
-                  <div className={`text-gray-900 font-medium ${getStatusColor(order.status)}`}>
-                    {getStatusText(order.status)}
+            <div key={order.id} className="rounded-xl border border-gray-200 bg-white p-4 hover:shadow-md transition-shadow">
+              <div className="space-y-3">
+                {/* Header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1">Order #{String(order.id).slice(0, 8)}</div>
+                    <div className={`text-sm font-semibold ${getStatusColor(order.status)}`}>
+                      {getStatusText(order.status)}
+                    </div>
                   </div>
-                  <div className="text-gray-800">For: {order.customer_name}</div>
-                  <div className="text-sm text-gray-600">{formatIndianTime(order.created_at)}</div>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${getOrderTypeColor(order.type)}`}>
+                    {getOrderTypeText(order.type)}
+                  </span>
                 </div>
-                <div className="flex gap-2">
+
+                {/* Time */}
+                <div className="text-xs text-gray-600">
+                  {formatIndianTime(order.created_at)}
+                </div>
+
+                {/* Action */}
+                <div className="pt-2 border-t border-gray-100">
                   <button
                     onClick={() => {
                       if (selectedOrder?.id === order.id && showDetails) {
@@ -224,39 +255,107 @@ export default function OrdersContent() {
                         setShowDetails(true);
                       }
                     }}
-                    className="text-sm text-red-600 hover:underline"
+                    className="w-full text-xs text-red-600 hover:text-red-700 font-medium"
                   >
                     {selectedOrder?.id === order.id && showDetails ? "Hide details" : "View details"}
                   </button>
                 </div>
-              </div>
 
-              {selectedOrder?.id === order.id && showDetails && selectedOrder.items && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <div className="space-y-2">
-                    {selectedOrder.items.map((item) => (
-                      <div key={item.id} className="flex justify-between text-sm">
-                        <div>
-                          <span className="font-medium">{item.menu_name || "Item"}</span>
-                          {item.variant_name && <span className="text-gray-600"> • {item.variant_name}</span>}
-                          <span className="text-gray-600"> × {item.quantity}</span>
+                {/* Details Modal */}
+                {selectedOrder?.id === order.id && showDetails && selectedOrder.items && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-xl max-w-md w-full max-h-[80vh] overflow-y-auto">
+                      <div className="p-4 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-gray-900">Order Details</h3>
+                          <button
+                            onClick={() => {
+                              setShowDetails(false);
+                              setSelectedOrder(null);
+                            }}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            ✕
+                          </button>
                         </div>
-                        <div className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</div>
                       </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between font-semibold">
-                    <span>Total:</span>
-                    <span>₹{calculateTotal(selectedOrder.items).toFixed(2)}</span>
-                  </div>
-                  {selectedOrder.customer_address && (
-                    <div className="mt-3 pt-3 border-t border-gray-100">
-                      <div className="text-sm text-gray-600">Delivery Address:</div>
-                      <div className="text-sm">{selectedOrder.customer_address}</div>
+                      
+                      <div className="p-4 space-y-4">
+                        {/* Order Info */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Order ID:</span>
+                            <span className="font-medium">#{String(order.id).slice(0, 8)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Type:</span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getOrderTypeColor(order.type)}`}>
+                              {getOrderTypeText(order.type)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Status:</span>
+                            <span className={`font-medium ${getStatusColor(order.status)}`}>
+                              {getStatusText(order.status)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Date:</span>
+                            <span className="font-medium">{formatIndianTime(order.created_at)}</span>
+                          </div>
+                        </div>
+
+                        {/* Items */}
+                        <div className="border-t border-gray-200 pt-4">
+                          <h4 className="font-medium text-gray-900 mb-3">Items</h4>
+                          <div className="space-y-2">
+                            {selectedOrder.items.map((item) => (
+                              <div key={item.id} className="flex justify-between text-sm">
+                                <div>
+                                  <span className="font-medium">{item.menu_name || "Item"}</span>
+                                  {item.variant_name && <span className="text-gray-600"> • {item.variant_name}</span>}
+                                  <span className="text-gray-600"> × {item.quantity}</span>
+                                </div>
+                                <div className="font-medium">₹{Math.round(item.price * item.quantity)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Total */}
+                        <div className="border-t border-gray-200 pt-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Subtotal:</span>
+                              <span className="font-medium">₹{Math.round(calculateTotal(selectedOrder.items))}</span>
+                            </div>
+                            {order.delivery_charge && order.delivery_charge > 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Delivery Charge:</span>
+                                <span className="font-medium text-blue-600">₹{order.delivery_charge}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between font-semibold border-t border-gray-200 pt-2">
+                              <span>Total:</span>
+                              <span>₹{Math.round(calculateTotal(selectedOrder.items) + (order.delivery_charge || 0))}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Delivery Address - Only show for delivery orders */}
+                        {order.type === "delivery" && selectedOrder.customer_address && (
+                          <div className="border-t border-gray-200 pt-4">
+                            <h4 className="font-medium text-gray-900 mb-2">Delivery Address</h4>
+                            <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
+                              {selectedOrder.customer_address}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
